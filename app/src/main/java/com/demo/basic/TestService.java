@@ -4,9 +4,9 @@ import android.util.Log;
 
 import com.demo.basic.base.BaseFloatService;
 import com.demo.basic.databinding.ServiceTestBinding;
+import com.demo.basic.pages.TestPage;
 
 public class TestService extends BaseFloatService<ServiceTestBinding> {
-    int count;
 
     @Override
     protected int layoutId() {
@@ -16,14 +16,12 @@ public class TestService extends BaseFloatService<ServiceTestBinding> {
     @Override
     protected void initData() {
         triggerMove(dataBinding.base);
-        dataBinding.add.setOnClickListener(v -> addPage(new TestPage(++count), R.id.page_container));
+        dataBinding.add.setOnClickListener(v -> addPage(new TestPage(), R.id.page_container));
         dataBinding.replace.setOnClickListener(v -> {
-            count = 1;
-            replacePage(new TestPage(count), R.id.page_container);
+            replacePage(new TestPage(), R.id.page_container);
         });
         dataBinding.back.setOnClickListener(v -> {
             removeTop();
-            count--;
         });
     }
 

@@ -313,21 +313,21 @@ public abstract class BaseFloatService<DB extends ViewDataBinding> extends Servi
         if (manager == null) {
             initPageAbout();
         }
-        page.context = this;
         ViewGroup parent = dataBinding.getRoot().findViewById(containerId);
-        View child = page.init(inflater, parent);
+        View child = page.init(this, inflater, parent);
+        page.performLifecycleEvent(Lifecycle.Event.ON_CREATE);
         manager.add(this, page);
         parent.addView(child);
         page.onAddToWindow();
+        page.performLifecycleEvent(Lifecycle.Event.ON_RESUME);
     }
 
     public void replacePage(FloatPage page, int containerId) {
         if (manager == null) {
             initPageAbout();
         }
-        page.context = this;
         ViewGroup parent = dataBinding.getRoot().findViewById(containerId);
-        View child = page.init(inflater, parent);
+        View child = page.init(this, inflater, parent);
         page.performLifecycleEvent(Lifecycle.Event.ON_CREATE);
         parent.addView(child);
         page.onAddToWindow();
@@ -357,7 +357,7 @@ public abstract class BaseFloatService<DB extends ViewDataBinding> extends Servi
         floatPage.performLifecycleEvent(Lifecycle.Event.ON_STOP);
         parent.removeView(child);
         floatPage.performLifecycleEvent(Lifecycle.Event.ON_DESTROY);
-        floatPage.onDestroy();
+        floatPage.destroy();
     }
 
     private void clearAllPages() {

@@ -19,8 +19,9 @@ import androidx.lifecycle.LifecycleRegistry;
  * Date: 2020/7/2
  * Description: blablabla
  */
-public abstract class FloatPage<DB extends ViewDataBinding> implements LifecycleOwner {
+public abstract class FloatPage<M extends BaseFloatModel, DB extends ViewDataBinding> implements LifecycleOwner {
     protected DB rootView;
+    protected M model;
     protected Context context;
     private LifecycleRegistry lifecycleRegistry;
 
@@ -29,22 +30,26 @@ public abstract class FloatPage<DB extends ViewDataBinding> implements Lifecycle
     }
 
     public void hide() {
-        if (rootView.getRoot().getVisibility() == View.VISIBLE) {
-            rootView.getRoot().setVisibility(View.INVISIBLE);
+        if (getRoot().getVisibility() == View.VISIBLE) {
+            getRoot().setVisibility(View.INVISIBLE);
             onVisibleChanged(false);
         }
     }
 
     public void show() {
-        if (rootView.getRoot().getVisibility() != View.VISIBLE) {
-            rootView.getRoot().setVisibility(View.VISIBLE);
+        if (getRoot().getVisibility() != View.VISIBLE) {
+            getRoot().setVisibility(View.VISIBLE);
             onVisibleChanged(true);
         }
     }
 
-    View init(LayoutInflater inflater, ViewGroup parent) {
+    View init(Context context, LayoutInflater inflater, ViewGroup parent) {
+        this.context = context;
         rootView = DataBindingUtil.bind(onCreate(inflater, parent));
-        return rootView.getRoot();
+        model = initModel();
+        model.create(context);
+        rootView.setVariable(modelId(), model);
+        return getRoot();
     }
 
     public View getRoot() {
@@ -56,7 +61,7 @@ public abstract class FloatPage<DB extends ViewDataBinding> implements Lifecycle
         if (Build.VERSION.SDK_INT >= 19) {
             lifecycleRegistry.addObserver((LifecycleEventObserver) (source, event) -> {
                 if (event == Lifecycle.Event.ON_STOP) {
-                    rootView.getRoot().cancelPendingInputEvents();
+                    getRoot().cancelPendingInputEvents();
                 }
             });
         }
@@ -72,7 +77,16 @@ public abstract class FloatPage<DB extends ViewDataBinding> implements Lifecycle
         return lifecycleRegistry;
     }
 
+    void destroy() {
+        model.destroy();
+        onDestroy();
+    }
+
     protected abstract View onCreate(LayoutInflater inflater, ViewGroup parent);
+
+    protected abstract M initModel();
+
+    protected abstract int modelId();
 
     protected abstract void onAddToWindow();
 
