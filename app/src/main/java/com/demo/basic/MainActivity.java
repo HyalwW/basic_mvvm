@@ -2,6 +2,7 @@ package com.demo.basic;
 
 import android.view.View;
 
+import com.demo.basic.base.BaseActivity;
 import com.demo.basic.databinding.ActivityMainBinding;
 
 public class MainActivity extends BaseActivity<MainViewModel, ActivityMainBinding> implements View.OnClickListener {
@@ -9,6 +10,11 @@ public class MainActivity extends BaseActivity<MainViewModel, ActivityMainBindin
     @Override
     protected int layoutId() {
         return R.layout.activity_main;
+    }
+
+    @Override
+    protected int viewModelId() {
+        return BR.viewModel;
     }
 
     @Override

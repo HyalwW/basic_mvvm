@@ -40,7 +40,7 @@ public class TestPage extends FloatPage<TestModel, PageTestBinding> {
     protected void onAddToWindow() {
         rootView.base.setBackgroundColor(randomColor());
         model.getHideEvent().observe(this, aBoolean -> {
-            Log.e("wwh", "TestPage --> onAddToWindow: " );
+            Log.e("wwh", "TestPage --> hideChanged: " );
             if (aBoolean) {
                 hide();
             } else {
