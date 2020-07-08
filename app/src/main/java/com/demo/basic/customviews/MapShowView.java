@@ -136,8 +136,7 @@ public class MapShowView extends BaseSurfaceView {
         bounds.set(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
         nowFeature = bean.getFeatures().get(0);
         pos2Path(mapPath, nowFeature, true);
-        int adcode = nowFeature.getProperties().getAdcode();
-        Requester.getBean(base + adcode + "_full.json", new ListenerAdapter<MapBean>() {
+        Requester.getBean(base + nowFeature.getProperties().getAdcode() + "_full.json", new ListenerAdapter<MapBean>() {
             @Override
             public void onSucceed(MapBean mapBean) {
                 super.onSucceed(mapBean);
@@ -176,21 +175,23 @@ public class MapShowView extends BaseSurfaceView {
         }
         float h = bounds.bottom - bounds.top;
         float w = bounds.right - bounds.left;
-        Log.e("wwh", "MapShowView --> pos2Path: " + w + " " + h);
+        float offsetX = 0, offsetY = 0;
         if (h > w) {
             scale = getMeasuredHeight() / h;
+            offsetX = (getMeasuredWidth() - w * scale) / 2;
         } else {
             scale = getMeasuredWidth() / w;
+            offsetY = (h * scale - getMeasuredHeight()) / 2;
         }
         for (float[] ints : list) {
             ints[0] = (ints[0] - bounds.left) * scale;
             ints[1] = (ints[1] - bounds.top) * scale;
         }
         float[] is = list.get(0);
-        path.moveTo(is[0], getMeasuredHeight() - is[1]);
+        path.moveTo(is[0] + offsetX, getMeasuredHeight() - is[1] + offsetY);
         for (int i = 1; i < list.size(); i++) {
             float[] ints = list.get(i);
-            path.lineTo(ints[0], getMeasuredHeight() - ints[1]);
+            path.lineTo(ints[0] + offsetX, getMeasuredHeight() - ints[1] + offsetY);
         }
     }
 
