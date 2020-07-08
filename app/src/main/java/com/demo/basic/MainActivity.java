@@ -25,7 +25,9 @@ public class MainActivity extends BaseActivity<MainViewModel, ActivityMainBindin
 
     @Override
     protected void initView() {
-
+        viewModel.getLocateEvent().observe(this, mapBean -> {
+            dataBinding.mapView.setLocation(mapBean);
+        });
     }
 
     @Override
