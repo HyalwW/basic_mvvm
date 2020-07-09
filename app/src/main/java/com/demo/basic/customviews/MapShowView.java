@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PathEffect;
@@ -41,6 +42,8 @@ public class MapShowView extends BaseSurfaceView {
     private static final String base = "https://geo.datav.aliyun.com/areas_v2/bound/";
     private boolean canTouch;
     private String name = "";
+    private Matrix matrix, inverse;
+    private float[] pts;
 
     public MapShowView(Context context) {
         super(context);
@@ -64,6 +67,9 @@ public class MapShowView extends BaseSurfaceView {
         if (canvasScale == 0) {
             canvasScale = 1;
         }
+        matrix = new Matrix();
+        inverse = new Matrix();
+        pts = new float[2];
     }
 
     @Override
@@ -92,8 +98,10 @@ public class MapShowView extends BaseSurfaceView {
         canvas.drawColor(Color.WHITE);
         canvas.save();
         if (baseX != 0 || baseY != 0 || canvasScale != 1) {
-            canvas.translate(baseX, baseY);
-            canvas.scale(canvasScale, canvasScale, scaleX, scaleY);
+            matrix.reset();
+            matrix.preScale(canvasScale, canvasScale, scaleX, scaleY);
+            matrix.postTranslate(baseX, baseY);
+            canvas.concat(matrix);
         }
         mPaint.setColor(Color.BLACK);
         mPaint.setStyle(Paint.Style.STROKE);
@@ -137,6 +145,8 @@ public class MapShowView extends BaseSurfaceView {
     public void setLocation(MapBean bean) {
         canTouch = true;
         selectCode = 0;
+        baseX = baseY = scaleX = scaleY = 0;
+        canvasScale = 1;
         insides.clear();
         bounds.set(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
         nowFeature = bean.getFeatures().get(0);
@@ -235,6 +245,7 @@ public class MapShowView extends BaseSurfaceView {
                     d2y = event.getY(1);
                     bl = distance(d1x, d1y, d2x, d2y);
                     bs = canvasScale;
+                    callDraw("");
                 }
                 break;
             case MotionEvent.ACTION_MOVE:
@@ -245,8 +256,12 @@ public class MapShowView extends BaseSurfaceView {
                     if (canvasScale < 0.2) {
                         canvasScale = 0.2f;
                     }
-                    scaleX = (event.getX(0) + event.getX(1)) / 2;
-                    scaleY = (event.getY(0) + event.getY(1)) / 2;
+                    pts[0] = (event.getX(0) + event.getX(1)) / 2;
+                    pts[1] = (event.getY(0) + event.getY(1)) / 2;
+//                    matrix.invert(inverse);
+//                    inverse.mapPoints(pts);
+                    scaleX = pts[0];
+                    scaleY = pts[1];
                 } else if (!doubleTouch) {
                     isClick = false;
                     baseX = bx + event.getX() - d1x;
@@ -259,14 +274,14 @@ public class MapShowView extends BaseSurfaceView {
             case MotionEvent.ACTION_CANCEL:
                 if (!doubleTouch) {
                     if (isClick) {
-                        if (baseX != 0 || baseY != 0 || canvasScale != 1) {
-                            scaleX = scaleY = baseX = baseY = 0;
-                            canvasScale = 1;
-                            callDraw("");
-                            return true;
-                        }
                         for (Map.Entry<MapBean.FeaturesBean, Path> entry : insides.entrySet()) {
-                            if (PathUtil.isInside(entry.getValue(), (int) event.getX(), (int) event.getY())) {
+                            pts[0] = event.getX();
+                            pts[1] = event.getY();
+                            if (baseX != 0 || baseY != 0 || canvasScale != 1) {
+                                matrix.invert(inverse);
+                                inverse.mapPoints(pts);
+                            }
+                            if (PathUtil.isInside(entry.getValue(), (int) pts[0], (int) pts[1])) {
                                 int key = entry.getKey().getProperties().getAdcode();
                                 if (selectCode != key) {
                                     selectCode = key;
