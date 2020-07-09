@@ -74,6 +74,7 @@ public class MapShowView extends BaseSurfaceView {
 
     @Override
     protected void onReady() {
+        callDraw("");
     }
 
     @Override
@@ -89,8 +90,11 @@ public class MapShowView extends BaseSurfaceView {
     @Override
     protected void draw(Canvas canvas, Object data) {
         canvas.drawColor(Color.WHITE);
-        canvas.translate(baseX, baseY);
-        canvas.scale(canvasScale, canvasScale, scaleX, scaleY);
+        canvas.save();
+        if (baseX != 0 || baseY != 0 || canvasScale != 1) {
+            canvas.translate(baseX, baseY);
+            canvas.scale(canvasScale, canvasScale, scaleX, scaleY);
+        }
         mPaint.setColor(Color.BLACK);
         mPaint.setStyle(Paint.Style.STROKE);
         canvas.drawPath(mapPath, mPaint);
@@ -107,6 +111,7 @@ public class MapShowView extends BaseSurfaceView {
                 canvas.drawPath(path, mPaint);
             }
         }
+        canvas.restore();
         drawName(canvas);
     }
 
@@ -235,18 +240,31 @@ public class MapShowView extends BaseSurfaceView {
             case MotionEvent.ACTION_MOVE:
                 if (count > 1) {
                     //缩放暂缓
-                } else {
+                    float nl = distance(event.getX(0), event.getY(0), event.getX(1), event.getY(1));
+                    canvasScale = bs + (nl - bl) * 0.005f;
+                    if (canvasScale < 0.2) {
+                        canvasScale = 0.2f;
+                    }
+                    scaleX = (event.getX(0) + event.getX(1)) / 2;
+                    scaleY = (event.getY(0) + event.getY(1)) / 2;
+                } else if (!doubleTouch) {
                     isClick = false;
-//                    baseX = bx + event.getX() - d1x;
-//                    baseY = by + event.getY() - d1y;
+                    baseX = bx + event.getX() - d1x;
+                    baseY = by + event.getY() - d1y;
                 }
-//                callDraw("");
+                callDraw("");
                 break;
             case MotionEvent.ACTION_POINTER_UP:
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
                 if (!doubleTouch) {
                     if (isClick) {
+                        if (baseX != 0 || baseY != 0 || canvasScale != 1) {
+                            scaleX = scaleY = baseX = baseY = 0;
+                            canvasScale = 1;
+                            callDraw("");
+                            return true;
+                        }
                         for (Map.Entry<MapBean.FeaturesBean, Path> entry : insides.entrySet()) {
                             if (PathUtil.isInside(entry.getValue(), (int) event.getX(), (int) event.getY())) {
                                 int key = entry.getKey().getProperties().getAdcode();
@@ -306,6 +324,9 @@ public class MapShowView extends BaseSurfaceView {
                             }
                         }
                     }
+                }
+                if (count == 1) {
+                    doubleTouch = isClick = false;
                 }
                 break;
         }
