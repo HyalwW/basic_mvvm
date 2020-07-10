@@ -95,19 +95,36 @@ public class MapShowView extends BaseSurfaceView {
 
     @Override
     protected void draw(Canvas canvas, Object data) {
-        canvas.drawColor(Color.WHITE);
+        canvas.drawColor(0xFF20B2AA);
         canvas.save();
+        transformCanvas(canvas);
+        drawMainArea(canvas);
+        drawChildAreas(canvas);
+        canvas.restore();
+        drawName(canvas);
+    }
+
+    private void transformCanvas(Canvas canvas) {
         if (baseX != 0 || baseY != 0 || canvasScale != 1) {
             matrix.reset();
             matrix.preScale(canvasScale, canvasScale, scaleX, scaleY);
             matrix.postTranslate(baseX, baseY);
             canvas.concat(matrix);
         }
+    }
+
+    private void drawMainArea(Canvas canvas) {
         mPaint.setColor(Color.BLACK);
         mPaint.setStyle(Paint.Style.STROKE);
-        mPaint.setStrokeWidth(1.5f);
+        mPaint.setStrokeWidth(1.2f);
         canvas.drawPath(mapPath, mPaint);
-        mPaint.setStrokeWidth(1);
+        mPaint.setColor(Color.WHITE);
+        mPaint.setStyle(Paint.Style.FILL);
+        canvas.drawPath(mapPath, mPaint);
+        mPaint.setStrokeWidth(0.5f);
+    }
+
+    private void drawChildAreas(Canvas canvas) {
         for (Map.Entry<MapBean.FeaturesBean, Path> entry : insides.entrySet()) {
             Path path = entry.getValue();
             mPaint.setStyle(Paint.Style.STROKE);
@@ -117,12 +134,10 @@ public class MapShowView extends BaseSurfaceView {
             if (selectCode == entry.getKey().getProperties().getAdcode()) {
                 mPaint.setPathEffect(null);
                 mPaint.setStyle(Paint.Style.FILL);
-                mPaint.setColor(Color.CYAN);
+                mPaint.setColor(0xFFFF8C00);
                 canvas.drawPath(path, mPaint);
             }
         }
-        canvas.restore();
-        drawName(canvas);
     }
 
     private void drawName(Canvas canvas) {
@@ -302,10 +317,7 @@ public class MapShowView extends BaseSurfaceView {
                                     name = entry.getKey().getProperties().getName();
                                     callDraw("");
                                 } else {
-                                    canTouch = false;
-                                    name = "正在获取：" + entry.getKey().getProperties().getName();
-                                    callDraw("");
-                                    showLocation(key, "获取失败，请重试！");
+                                    showLocation(key, "正在获取：" + entry.getKey().getProperties().getName(), "获取失败，请重试！");
                                 }
                                 return true;
                             }
@@ -323,9 +335,7 @@ public class MapShowView extends BaseSurfaceView {
                             if (parent != null && parent.getAdcode() != 0) {
                                 canTouch = false;
                                 String tempName = name;
-                                name = "正在获取上一级";
-                                callDraw("");
-                                showLocation(parent.getAdcode(), tempName);
+                                showLocation(parent.getAdcode(), "正在获取上一级", tempName);
                             }
                         }
                     }
@@ -338,7 +348,9 @@ public class MapShowView extends BaseSurfaceView {
         return true;
     }
 
-    public void showLocation(int adCode, String failName) {
+    public void showLocation(int adCode, String processName, String failName) {
+        name = processName;
+        callDraw("");
         canTouch = false;
         Requester.getBean(base + adCode + ".json", new ListenerAdapter<MapBean>() {
             @Override
