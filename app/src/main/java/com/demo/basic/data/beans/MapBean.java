@@ -1,4 +1,4 @@
-package com.demo.basic.data;
+package com.demo.basic.data.beans;
 
 import java.util.List;
 
@@ -93,7 +93,7 @@ public class MapBean {
 
             @Override
             public int hashCode() {
-                return adcode + name.hashCode() + level.hashCode();
+                return adcode;
             }
 
             public int getAdcode() {

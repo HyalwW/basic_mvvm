@@ -10,9 +10,15 @@ import android.graphics.Region;
  * Description: blablabla
  */
 public class PathUtil {
-    private static RectF bounds = new RectF();
-    private static Region region = new Region();
-    private static Region clip = new Region();
+    private static RectF bounds;
+    private static Region region;
+    private static Region clip;
+
+    static {
+        bounds = new RectF();
+        region = new Region();
+        clip = new Region();
+    }
 
     public static boolean isInside(Path path, int x, int y) {
         bounds.setEmpty();
