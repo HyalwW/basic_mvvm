@@ -105,7 +105,9 @@ public class MapShowView extends BaseSurfaceView {
         }
         mPaint.setColor(Color.BLACK);
         mPaint.setStyle(Paint.Style.STROKE);
+        mPaint.setStrokeWidth(1.5f);
         canvas.drawPath(mapPath, mPaint);
+        mPaint.setStrokeWidth(1);
         for (Map.Entry<MapBean.FeaturesBean, Path> entry : insides.entrySet()) {
             Path path = entry.getValue();
             mPaint.setStyle(Paint.Style.STROKE);
@@ -142,7 +144,7 @@ public class MapShowView extends BaseSurfaceView {
         return false;
     }
 
-    public void setLocation(MapBean bean) {
+    private void setLocation(MapBean bean) {
         canTouch = true;
         selectCode = 0;
         baseX = baseY = scaleX = scaleY = 0;
@@ -182,7 +184,7 @@ public class MapShowView extends BaseSurfaceView {
         for (List<Double> doubles : featuresBean.getGeometry().getCoordinates().get(0).get(0)) {
             float[] pos = new float[2];
             pos[0] = (float) (doubles.get(0) * 1000000);
-            pos[1] = (float) (doubles.get(1) * 1000000);
+            pos[1] = (float) (doubles.get(1) * 1200000);
             list.add(pos);
             if (needCompute) {
                 compute(pos[0], pos[1]);
@@ -245,23 +247,35 @@ public class MapShowView extends BaseSurfaceView {
                     d2y = event.getY(1);
                     bl = distance(d1x, d1y, d2x, d2y);
                     bs = canvasScale;
-                    callDraw("");
+                    matrix.invert(inverse);
+                    d1x = (d1x + d2x) / 2;
+                    d1y = (d1y + d2y) / 2;
+                    pts[0] = d1x;
+                    pts[1] = d1y;
+                    inverse.mapPoints(pts);
+                    scaleX = pts[0];
+                    scaleY = pts[1];
+                    matrix.reset();
+                    matrix.preScale(canvasScale, canvasScale, scaleX, scaleY);
+                    matrix.postTranslate(baseX, baseY);
+                    matrix.mapPoints(pts);
+                    bx += (d1x - pts[0]);
+                    by += (d1y - pts[1]);
                 }
                 break;
             case MotionEvent.ACTION_MOVE:
                 if (count > 1) {
-                    //缩放暂缓
                     float nl = distance(event.getX(0), event.getY(0), event.getX(1), event.getY(1));
                     canvasScale = bs + (nl - bl) * 0.005f;
                     if (canvasScale < 0.2) {
                         canvasScale = 0.2f;
+                    } else if (canvasScale > 15f) {
+                        canvasScale = 15;
                     }
                     pts[0] = (event.getX(0) + event.getX(1)) / 2;
                     pts[1] = (event.getY(0) + event.getY(1)) / 2;
-//                    matrix.invert(inverse);
-//                    inverse.mapPoints(pts);
-                    scaleX = pts[0];
-                    scaleY = pts[1];
+                    baseX = bx + pts[0] - d1x;
+                    baseY = by + pts[1] - d1y;
                 } else if (!doubleTouch) {
                     isClick = false;
                     baseX = bx + event.getX() - d1x;
@@ -291,21 +305,7 @@ public class MapShowView extends BaseSurfaceView {
                                     canTouch = false;
                                     name = "正在获取：" + entry.getKey().getProperties().getName();
                                     callDraw("");
-                                    Requester.getBean(base + key + ".json", new ListenerAdapter<MapBean>() {
-                                        @Override
-                                        public void onSucceed(MapBean mapBean) {
-                                            super.onSucceed(mapBean);
-                                            setLocation(mapBean);
-                                        }
-
-                                        @Override
-                                        public void onFailed(Throwable throwable) {
-                                            super.onFailed(throwable);
-                                            canTouch = true;
-                                            name = "获取失败，请重试！";
-                                            callDraw("");
-                                        }
-                                    });
+                                    showLocation(key, "获取失败，请重试！");
                                 }
                                 return true;
                             }
@@ -314,6 +314,10 @@ public class MapShowView extends BaseSurfaceView {
                             selectCode = 0;
                             name = nowFeature.getProperties().getName();
                             callDraw("");
+                        } else if (baseX != 0 || baseY != 0 || canvasScale != 1) {
+                            scaleX = scaleY = baseX = baseY = 0;
+                            canvasScale = 1;
+                            callDraw("");
                         } else {
                             MapBean.FeaturesBean.PropertiesBean.ParentBean parent = nowFeature.getProperties().getParent();
                             if (parent != null && parent.getAdcode() != 0) {
@@ -321,21 +325,7 @@ public class MapShowView extends BaseSurfaceView {
                                 String tempName = name;
                                 name = "正在获取上一级";
                                 callDraw("");
-                                Requester.getBean(base + parent.getAdcode() + ".json", new ListenerAdapter<MapBean>() {
-                                    @Override
-                                    public void onSucceed(MapBean mapBean) {
-                                        super.onSucceed(mapBean);
-                                        setLocation(mapBean);
-                                    }
-
-                                    @Override
-                                    public void onFailed(Throwable throwable) {
-                                        super.onFailed(throwable);
-                                        name = tempName;
-                                        callDraw("");
-                                        canTouch = true;
-                                    }
-                                });
+                                showLocation(parent.getAdcode(), tempName);
                             }
                         }
                     }
@@ -346,6 +336,25 @@ public class MapShowView extends BaseSurfaceView {
                 break;
         }
         return true;
+    }
+
+    public void showLocation(int adCode, String failName) {
+        canTouch = false;
+        Requester.getBean(base + adCode + ".json", new ListenerAdapter<MapBean>() {
+            @Override
+            public void onSucceed(MapBean mapBean) {
+                super.onSucceed(mapBean);
+                setLocation(mapBean);
+            }
+
+            @Override
+            public void onFailed(Throwable throwable) {
+                super.onFailed(throwable);
+                name = failName;
+                callDraw("");
+                canTouch = true;
+            }
+        });
     }
 
     private float distance(float x1, float y1, float x2, float y2) {
