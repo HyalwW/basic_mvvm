@@ -90,14 +90,14 @@ public class LocalMapBean {
         isFull = full;
     }
 
-    public void setCoords(List<List<Double>> coordinates) {
+    public void setCoords(List<List<List<List<Double>>>> coordinates) {
         Gson gson = BasicApp.getGson();
         setCoordinates(gson.toJson(coordinates));
     }
 
-    public List<List<Double>> getCoords() {
+    public List<List<List<List<Double>>>> getCoords() {
         Gson gson = BasicApp.getGson();
-        return gson.fromJson(coordinates, new TypeToken<List<List<Double>>>() {
+        return gson.fromJson(coordinates, new TypeToken<List<List<List<List<Double>>>>>() {
         }.getType());
     }
 

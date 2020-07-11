@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Created by Wang.Wenhui
@@ -36,8 +37,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class MapShowView extends BaseSurfaceView {
     private LocalMapBean nowMapBean;
-    private Path mapPath;
-    private Map<LocalMapBean, Path> insides;
+    private List<Path> mapPaths;
+    private Map<LocalMapBean, List<Path>> insides;
     private PathEffect dash;
     private int selectCode = 0;
     private float canvasScale;
@@ -65,7 +66,7 @@ public class MapShowView extends BaseSurfaceView {
 
     @Override
     protected void onInit() {
-        mapPath = new Path();
+        mapPaths = new CopyOnWriteArrayList<>();
         mPaint.setTextAlign(Paint.Align.CENTER);
         insides = new ConcurrentHashMap<>();
         dash = new DashPathEffect(new float[]{5, 5}, 0);
@@ -124,25 +125,30 @@ public class MapShowView extends BaseSurfaceView {
         mPaint.setColor(Color.BLACK);
         mPaint.setStyle(Paint.Style.STROKE);
         mPaint.setStrokeWidth(1.2f);
-        canvas.drawPath(mapPath, mPaint);
+        for (Path mapPath : mapPaths) {
+            canvas.drawPath(mapPath, mPaint);
+        }
         mPaint.setColor(Color.WHITE);
         mPaint.setStyle(Paint.Style.FILL);
-        canvas.drawPath(mapPath, mPaint);
+        for (Path mapPath : mapPaths) {
+            canvas.drawPath(mapPath, mPaint);
+        }
         mPaint.setStrokeWidth(0.5f);
     }
 
     private void drawChildAreas(Canvas canvas) {
-        for (Map.Entry<LocalMapBean, Path> entry : insides.entrySet()) {
-            Path path = entry.getValue();
-            mPaint.setStyle(Paint.Style.STROKE);
-            mPaint.setColor(Color.BLACK);
-            mPaint.setPathEffect(dash);
-            canvas.drawPath(path, mPaint);
-            if (selectCode == entry.getKey().getAdCode()) {
-                mPaint.setPathEffect(null);
-                mPaint.setStyle(Paint.Style.FILL);
-                mPaint.setColor(0xFFFF8C00);
+        for (Map.Entry<LocalMapBean, List<Path>> entry : insides.entrySet()) {
+            for (Path path : entry.getValue()) {
+                mPaint.setStyle(Paint.Style.STROKE);
+                mPaint.setColor(Color.BLACK);
+                mPaint.setPathEffect(dash);
                 canvas.drawPath(path, mPaint);
+                if (selectCode == entry.getKey().getAdCode()) {
+                    mPaint.setPathEffect(null);
+                    mPaint.setStyle(Paint.Style.FILL);
+                    mPaint.setColor(0xFFFF8C00);
+                    canvas.drawPath(path, mPaint);
+                }
             }
         }
     }
@@ -174,7 +180,8 @@ public class MapShowView extends BaseSurfaceView {
         insides.clear();
         bounds.set(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
         nowMapBean = getLocalMapBean(bean.getFeatures().get(0), true);
-        pos2Path(mapPath, nowMapBean.getCoords(), true);
+        mapPaths.clear();
+        pos2Path(mapPaths, nowMapBean.getCoords(), true);
         if (nowMapBean.getChildrenNum() > 0) {
             List<LocalMapBean> list = new ArrayList<>();
             list.add(nowMapBean);
@@ -188,8 +195,9 @@ public class MapShowView extends BaseSurfaceView {
                         Path path = new Path();
                         LocalMapBean localMapBean = getLocalMapBean(feature, false);
                         list.add(localMapBean);
-                        pos2Path(path, feature.getGeometry().getCoordinates().get(0).get(0), false);
-                        insides.put(localMapBean, path);
+                        List<Path> paths = new ArrayList<>();
+                        pos2Path(paths, feature.getGeometry().getCoordinates(), false);
+                        insides.put(localMapBean, paths);
                     }
                     callDraw("");
                     if (list.size() > 0) {
@@ -221,23 +229,28 @@ public class MapShowView extends BaseSurfaceView {
         if (parent != null) {
             localMapBean.setParent(parent.getAdcode());
         }
-        localMapBean.setCoords(feature.getGeometry().getCoordinates().get(0).get(0));
+        localMapBean.setCoords(feature.getGeometry().getCoordinates());
         return localMapBean;
     }
 
-    private void pos2Path(Path path, List<List<Double>> coords, boolean needCompute) {
-        path.reset();
+    private void pos2Path(List<Path> paths, List<List<List<List<Double>>>> coords, boolean needCompute) {
         if (needCompute) {
             bounds.set(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
         }
-        List<float[]> list = new ArrayList<>();
-        for (List<Double> doubles : coords) {
-            float[] pos = new float[2];
-            pos[0] = (float) (doubles.get(0) * 1000000);
-            pos[1] = (float) (doubles.get(1) * 1200000);
-            list.add(pos);
-            if (needCompute) {
-                compute(pos[0], pos[1]);
+        List<List<float[]>> list = new ArrayList<>();
+        for (List<List<List<Double>>> lists : coords) {
+            for (List<List<Double>> listList : lists) {
+                List<float[]> ll = new ArrayList<>();
+                for (List<Double> doubles : listList) {
+                    float[] pos = new float[2];
+                    pos[0] = (float) (doubles.get(0) * 1000000);
+                    pos[1] = (float) (doubles.get(1) * 1200000);
+                    ll.add(pos);
+                    if (needCompute) {
+                        compute(pos[0], pos[1]);
+                    }
+                }
+                list.add(ll);
             }
         }
         float h = bounds.bottom - bounds.top;
@@ -251,15 +264,19 @@ public class MapShowView extends BaseSurfaceView {
             scale = getMeasuredWidth() / w;
             offsetY = (h * scale - getMeasuredHeight()) / 2;
         }
-        for (float[] ints : list) {
-            ints[0] = (ints[0] - bounds.left) * scale;
-            ints[1] = (ints[1] - bounds.top) * scale;
-        }
-        float[] is = list.get(0);
-        path.moveTo(is[0] + offsetX, getMeasuredHeight() - is[1] + offsetY);
-        for (int i = 1; i < list.size(); i++) {
-            float[] ints = list.get(i);
-            path.lineTo(ints[0] + offsetX, getMeasuredHeight() - ints[1] + offsetY);
+        for (List<float[]> ll : list) {
+            Path path = new Path();
+            for (float[] ints : ll) {
+                ints[0] = (ints[0] - bounds.left) * scale;
+                ints[1] = (ints[1] - bounds.top) * scale;
+            }
+            float[] is = ll.get(0);
+            path.moveTo(is[0] + offsetX, getMeasuredHeight() - is[1] + offsetY);
+            for (int i = 1; i < ll.size(); i++) {
+                float[] ints = ll.get(i);
+                path.lineTo(ints[0] + offsetX, getMeasuredHeight() - ints[1] + offsetY);
+            }
+            paths.add(path);
         }
     }
 
@@ -339,23 +356,25 @@ public class MapShowView extends BaseSurfaceView {
             case MotionEvent.ACTION_CANCEL:
                 if (!doubleTouch) {
                     if (isClick) {
-                        for (Map.Entry<LocalMapBean, Path> entry : insides.entrySet()) {
+                        for (Map.Entry<LocalMapBean, List<Path>> entry : insides.entrySet()) {
                             pts[0] = event.getX();
                             pts[1] = event.getY();
                             if (baseX != 0 || baseY != 0 || canvasScale != 1) {
                                 matrix.invert(inverse);
                                 inverse.mapPoints(pts);
                             }
-                            if (PathUtil.isInside(entry.getValue(), (int) pts[0], (int) pts[1])) {
-                                int key = (int) entry.getKey().getAdCode();
-                                if (selectCode != key) {
-                                    selectCode = key;
-                                    name = entry.getKey().getName();
-                                    callDraw("");
-                                } else {
-                                    showLocation(key, "正在获取：" + entry.getKey().getName(), "获取失败，请重试！");
+                            for (Path path : entry.getValue()) {
+                                if (PathUtil.isInside(path, (int) pts[0], (int) pts[1])) {
+                                    int key = entry.getKey().getAdCode();
+                                    if (selectCode != key) {
+                                        selectCode = key;
+                                        name = entry.getKey().getName();
+                                        callDraw("");
+                                    } else {
+                                        showLocation(key, "正在获取：" + entry.getKey().getName(), "获取失败，请重试！");
+                                    }
+                                    return true;
                                 }
-                                return true;
                             }
                         }
                         if (selectCode != 0) {
@@ -365,6 +384,7 @@ public class MapShowView extends BaseSurfaceView {
                         } else if (baseX != 0 || baseY != 0 || canvasScale != 1) {
                             scaleX = scaleY = baseX = baseY = 0;
                             canvasScale = 1;
+                            matrix.reset();
                             callDraw("");
                         } else {
                             long parent = nowMapBean.getParent();
@@ -398,7 +418,8 @@ public class MapShowView extends BaseSurfaceView {
                 insides.clear();
                 bounds.set(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
                 nowMapBean = mapBean;
-                pos2Path(mapPath, nowMapBean.getCoords(), true);
+                mapPaths.clear();
+                pos2Path(mapPaths, nowMapBean.getCoords(), true);
                 name = nowMapBean.getName();
                 callDraw("");
             }
@@ -432,18 +453,19 @@ public class MapShowView extends BaseSurfaceView {
         insides.clear();
         bounds.set(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
         nowMapBean = mapBean;
-        pos2Path(mapPath, nowMapBean.getCoords(), true);
+        mapPaths.clear();
+        pos2Path(mapPaths, nowMapBean.getCoords(), true);
         List<LocalMapBean> children = mapDao.loadChildren(nowMapBean.getAdCode(), false);
         if (children != null && children.size() > 0) {
             for (LocalMapBean child : children) {
-                Path path = new Path();
-                pos2Path(path, child.getCoords(), false);
-                insides.put(child, path);
+                List<Path> paths = new ArrayList<>();
+                pos2Path(paths, child.getCoords(), false);
+                insides.put(child, paths);
             }
             name = nowMapBean.getName();
             callDraw("");
         } else {
-            Log.e("wwh", "MapShowView-->setLocalLocation(): 网络获取子项" );
+            Log.e("wwh", "MapShowView-->setLocalLocation(): 网络获取子项");
             Requester.getBean(base + nowMapBean.getAdCode() + "_full.json", new ListenerAdapter<MapBean>() {
                 @Override
                 public void onSucceed(MapBean mapBean) {
@@ -452,10 +474,10 @@ public class MapShowView extends BaseSurfaceView {
                     for (MapBean.FeaturesBean feature : mapBean.getFeatures()) {
                         if (feature.getProperties().getLevel() == null)
                             break;
-                        Path path = new Path();
                         LocalMapBean localMapBean = getLocalMapBean(feature, false);
                         list.add(localMapBean);
-                        pos2Path(path, feature.getGeometry().getCoordinates().get(0).get(0), false);
+                        List<Path> path = new ArrayList<>();
+                        pos2Path(path, feature.getGeometry().getCoordinates(), false);
                         insides.put(localMapBean, path);
                     }
                     callDraw("");
