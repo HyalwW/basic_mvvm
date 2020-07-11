@@ -1,7 +1,5 @@
 package com.demo.basic.data.beans;
 
-import android.util.Log;
-
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
@@ -18,18 +16,29 @@ import java.util.List;
  */
 @Entity
 public class LocalMapBean {
-    @PrimaryKey
-    private long adCode;
+    @PrimaryKey(autoGenerate = true)
+    private long id;
+    private int adCode;
     private String name;
     private String level;
+    private int childrenNum;
     private long parent;
     private String coordinates;
+    private boolean isFull;
 
-    public long getAdCode() {
+    public long getId() {
+        return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public int getAdCode() {
         return adCode;
     }
 
-    public void setAdCode(long adCode) {
+    public void setAdCode(int adCode) {
         this.adCode = adCode;
     }
 
@@ -49,6 +58,14 @@ public class LocalMapBean {
         this.level = level;
     }
 
+    public int getChildrenNum() {
+        return childrenNum;
+    }
+
+    public void setChildrenNum(int childrenNum) {
+        this.childrenNum = childrenNum;
+    }
+
     public long getParent() {
         return parent;
     }
@@ -65,12 +82,17 @@ public class LocalMapBean {
         this.coordinates = coordinates;
     }
 
+    public boolean isFull() {
+        return isFull;
+    }
+
+    public void setFull(boolean full) {
+        isFull = full;
+    }
+
     public void setCoords(List<List<Double>> coordinates) {
         Gson gson = BasicApp.getGson();
-        this.coordinates = gson.toJson(coordinates);
-        if (adCode == 100000) {
-            Log.e("wwh", "LocalMapBean --> setCoords: " + coordinates.size());
-        }
+        setCoordinates(gson.toJson(coordinates));
     }
 
     public List<List<Double>> getCoords() {

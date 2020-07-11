@@ -16,16 +16,16 @@ import java.util.List;
  */
 @Dao
 public interface LocalMapDao {
-    @Query("select * from localmapbean where adCode = :adCode")
-    LocalMapBean loadLocalMap(int adCode);
+    @Query("select * from localmapbean where adCode = :adCode and isFull = :isFull")
+    LocalMapBean loadLocalMap(int adCode, boolean isFull);
 
-    @Query("select * from localmapbean where parent = :parentCode")
+    @Query("select * from localmapbean where parent = :parentCode and isFull = 'false'")
     List<LocalMapBean> loadChildren(int parentCode);
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert
     void insertLocalMap(LocalMapBean localMapBean);
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert
     void insertLocalMaps(List<LocalMapBean> list);
 
 }

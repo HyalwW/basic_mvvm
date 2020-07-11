@@ -173,44 +173,50 @@ public class MapShowView extends BaseSurfaceView {
         canvasScale = 1;
         insides.clear();
         bounds.set(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
-        List<LocalMapBean> list = new ArrayList<>();
-        nowMapBean = getLocalMapBean(bean.getFeatures().get(0));
+        nowMapBean = getLocalMapBean(bean.getFeatures().get(0), true);
         pos2Path(mapPath, nowMapBean.getCoords(), true);
-        list.add(nowMapBean);
-        Requester.getBean(base + nowMapBean.getAdCode() + "_full.json", new ListenerAdapter<MapBean>() {
-            @Override
-            public void onSucceed(MapBean mapBean) {
-                super.onSucceed(mapBean);
-                for (MapBean.FeaturesBean feature : mapBean.getFeatures()) {
-                    if (feature.getProperties().getLevel() == null)
-                        break;
-                    Path path = new Path();
-                    LocalMapBean localMapBean = getLocalMapBean(feature);
-                    list.add(localMapBean);
-                    pos2Path(path, feature.getGeometry().getCoordinates().get(0).get(0), false);
-                    insides.put(localMapBean, path);
+        if (nowMapBean.getChildrenNum() > 0) {
+            List<LocalMapBean> list = new ArrayList<>();
+            list.add(nowMapBean);
+            Requester.getBean(base + nowMapBean.getAdCode() + "_full.json", new ListenerAdapter<MapBean>() {
+                @Override
+                public void onSucceed(MapBean mapBean) {
+                    super.onSucceed(mapBean);
+                    for (MapBean.FeaturesBean feature : mapBean.getFeatures()) {
+                        if (feature.getProperties().getLevel() == null)
+                            break;
+                        Path path = new Path();
+                        LocalMapBean localMapBean = getLocalMapBean(feature, false);
+                        list.add(localMapBean);
+                        pos2Path(path, feature.getGeometry().getCoordinates().get(0).get(0), false);
+                        insides.put(localMapBean, path);
+                    }
+                    callDraw("");
+                    if (list.size() > 0) {
+                        ThreadPool.fixed().execute(() -> mapDao.insertLocalMaps(list));
+                    }
                 }
-                callDraw("");
-                if (list.size() > 0) {
-                    ThreadPool.fixed().execute(() -> mapDao.insertLocalMaps(list));
-                }
-            }
 
-            @Override
-            public void onFailed(Throwable throwable) {
-                super.onFailed(throwable);
-                Log.e("wwh", "MapShowView --> onFailed: " + throwable.getMessage());
-            }
-        });
+                @Override
+                public void onFailed(Throwable throwable) {
+                    super.onFailed(throwable);
+                    Log.e("wwh", "MapShowView --> onFailed: " + throwable.getMessage());
+                }
+            });
+        } else {
+            ThreadPool.fixed().execute(() -> mapDao.insertLocalMap(nowMapBean));
+        }
         name = nowMapBean.getName();
         callDraw("");
     }
 
-    private LocalMapBean getLocalMapBean(MapBean.FeaturesBean feature) {
+    private LocalMapBean getLocalMapBean(MapBean.FeaturesBean feature, boolean isFull) {
         LocalMapBean localMapBean = new LocalMapBean();
         localMapBean.setAdCode(feature.getProperties().getAdcode());
         localMapBean.setName(feature.getProperties().getName());
         localMapBean.setLevel(feature.getProperties().getLevel());
+        localMapBean.setChildrenNum(feature.getProperties().getChildrenNum());
+        localMapBean.setFull(isFull);
         MapBean.FeaturesBean.PropertiesBean.ParentBean parent = feature.getProperties().getParent();
         if (parent != null) {
             localMapBean.setParent(parent.getAdcode());
@@ -382,8 +388,20 @@ public class MapShowView extends BaseSurfaceView {
         name = processName;
         callDraw("");
         canTouch = false;
-        LocalMapBean mapBean = mapDao.loadLocalMap(adCode);
+        LocalMapBean mapBean = mapDao.loadLocalMap(adCode, true);
         if (mapBean == null) {
+            mapBean = mapDao.loadLocalMap(adCode, false);
+            if (mapBean != null) {
+                selectCode = 0;
+                baseX = baseY = scaleX = scaleY = 0;
+                canvasScale = 1;
+                insides.clear();
+                bounds.set(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
+                nowMapBean = mapBean;
+                pos2Path(mapPath, nowMapBean.getCoords(), true);
+                name = nowMapBean.getName();
+                callDraw("");
+            }
             Log.e("wwh", "MapShowView --> showLocation: 从网络获取");
             Requester.getBean(base + adCode + ".json", new ListenerAdapter<MapBean>() {
                 @Override
@@ -415,7 +433,7 @@ public class MapShowView extends BaseSurfaceView {
         bounds.set(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
         nowMapBean = mapBean;
         pos2Path(mapPath, nowMapBean.getCoords(), true);
-        List<LocalMapBean> children = mapDao.loadChildren((int) nowMapBean.getAdCode());
+        List<LocalMapBean> children = mapDao.loadChildren(nowMapBean.getAdCode());
         if (children != null && children.size() > 0) {
             for (LocalMapBean child : children) {
                 Path path = new Path();
@@ -434,7 +452,7 @@ public class MapShowView extends BaseSurfaceView {
                         if (feature.getProperties().getLevel() == null)
                             break;
                         Path path = new Path();
-                        LocalMapBean localMapBean = getLocalMapBean(feature);
+                        LocalMapBean localMapBean = getLocalMapBean(feature, false);
                         list.add(localMapBean);
                         pos2Path(path, feature.getGeometry().getCoordinates().get(0).get(0), false);
                         insides.put(localMapBean, path);
