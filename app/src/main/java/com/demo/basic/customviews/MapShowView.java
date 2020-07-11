@@ -433,7 +433,7 @@ public class MapShowView extends BaseSurfaceView {
         bounds.set(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
         nowMapBean = mapBean;
         pos2Path(mapPath, nowMapBean.getCoords(), true);
-        List<LocalMapBean> children = mapDao.loadChildren(nowMapBean.getAdCode());
+        List<LocalMapBean> children = mapDao.loadChildren(nowMapBean.getAdCode(), false);
         if (children != null && children.size() > 0) {
             for (LocalMapBean child : children) {
                 Path path = new Path();
@@ -443,6 +443,7 @@ public class MapShowView extends BaseSurfaceView {
             name = nowMapBean.getName();
             callDraw("");
         } else {
+            Log.e("wwh", "MapShowView-->setLocalLocation(): 网络获取子项" );
             Requester.getBean(base + nowMapBean.getAdCode() + "_full.json", new ListenerAdapter<MapBean>() {
                 @Override
                 public void onSucceed(MapBean mapBean) {

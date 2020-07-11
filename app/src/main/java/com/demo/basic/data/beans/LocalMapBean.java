@@ -106,6 +106,6 @@ public class LocalMapBean {
         if (level == null) {
             level = "";
         }
-        return (int) adCode + name.hashCode() + level.hashCode();
+        return adCode + name.hashCode() + level.hashCode();
     }
 }

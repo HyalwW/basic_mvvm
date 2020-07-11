@@ -19,8 +19,8 @@ public interface LocalMapDao {
     @Query("select * from localmapbean where adCode = :adCode and isFull = :isFull")
     LocalMapBean loadLocalMap(int adCode, boolean isFull);
 
-    @Query("select * from localmapbean where parent = :parentCode and isFull = 'false'")
-    List<LocalMapBean> loadChildren(int parentCode);
+    @Query("select * from localmapbean where parent = :parentCode and isFull = :isFull")
+    List<LocalMapBean> loadChildren(int parentCode, boolean isFull);
 
     @Insert
     void insertLocalMap(LocalMapBean localMapBean);
