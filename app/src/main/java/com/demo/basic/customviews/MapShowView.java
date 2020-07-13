@@ -6,7 +6,6 @@ import android.graphics.Color;
 import android.graphics.DashPathEffect;
 import android.graphics.Matrix;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.PathEffect;
 import android.graphics.Rect;
 import android.graphics.RectF;
@@ -18,10 +17,12 @@ import com.demo.basic.base.BaseSurfaceView;
 import com.demo.basic.data.AppDatabase;
 import com.demo.basic.data.beans.LocalMapBean;
 import com.demo.basic.data.beans.MapBean;
+import com.demo.basic.data.beans.MapPath;
 import com.demo.basic.data.daos.LocalMapDao;
 import com.demo.basic.net.ListenerAdapter;
 import com.demo.basic.net.Requester;
 import com.demo.basic.utils.PathUtil;
+import com.demo.basic.utils.Pool;
 import com.demo.basic.utils.ThreadPool;
 
 import java.util.ArrayList;
@@ -37,8 +38,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public class MapShowView extends BaseSurfaceView {
     private LocalMapBean nowMapBean;
-    private List<Path> mapPaths;
-    private Map<LocalMapBean, List<Path>> insides;
+    private List<MapPath> mapPaths;
+    private Map<LocalMapBean, List<MapPath>> insides;
     private PathEffect dash;
     private int selectCode = 0;
     private float canvasScale;
@@ -49,6 +50,8 @@ public class MapShowView extends BaseSurfaceView {
     private String name = "";
     private Matrix matrix, inverse;
     private float[] pts;
+
+    private Pool<MapPath> pathPool;
 
     private LocalMapDao mapDao;
 
@@ -78,6 +81,7 @@ public class MapShowView extends BaseSurfaceView {
         inverse = new Matrix();
         pts = new float[2];
         mapDao = AppDatabase.getDatabase().localMapDao();
+        pathPool = new Pool<>(MapPath::new);
     }
 
     @Override
@@ -125,20 +129,20 @@ public class MapShowView extends BaseSurfaceView {
         mPaint.setColor(Color.BLACK);
         mPaint.setStyle(Paint.Style.STROKE);
         mPaint.setStrokeWidth(1.2f);
-        for (Path mapPath : mapPaths) {
+        for (MapPath mapPath : mapPaths) {
             canvas.drawPath(mapPath, mPaint);
         }
         mPaint.setColor(Color.WHITE);
         mPaint.setStyle(Paint.Style.FILL);
-        for (Path mapPath : mapPaths) {
+        for (MapPath mapPath : mapPaths) {
             canvas.drawPath(mapPath, mPaint);
         }
         mPaint.setStrokeWidth(0.5f);
     }
 
     private void drawChildAreas(Canvas canvas) {
-        for (Map.Entry<LocalMapBean, List<Path>> entry : insides.entrySet()) {
-            for (Path path : entry.getValue()) {
+        for (Map.Entry<LocalMapBean, List<MapPath>> entry : insides.entrySet()) {
+            for (MapPath path : entry.getValue()) {
                 mPaint.setStyle(Paint.Style.STROKE);
                 mPaint.setColor(Color.BLACK);
                 mPaint.setPathEffect(dash);
@@ -175,12 +179,10 @@ public class MapShowView extends BaseSurfaceView {
     private void setOnLineLocation(MapBean bean) {
         canTouch = true;
         selectCode = 0;
-        baseX = baseY = scaleX = scaleY = 0;
-        canvasScale = 1;
-        insides.clear();
+        resetTransform();
+        resetPaths();
         bounds.set(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
         nowMapBean = getLocalMapBean(bean.getFeatures().get(0), true);
-        mapPaths.clear();
         pos2Path(mapPaths, nowMapBean.getCoords(), true);
         if (nowMapBean.getChildrenNum() > 0) {
             List<LocalMapBean> list = new ArrayList<>();
@@ -192,10 +194,10 @@ public class MapShowView extends BaseSurfaceView {
                     for (MapBean.FeaturesBean feature : mapBean.getFeatures()) {
                         if (feature.getProperties().getLevel() == null)
                             break;
-                        Path path = new Path();
+                        MapPath path = new MapPath();
                         LocalMapBean localMapBean = getLocalMapBean(feature, false);
                         list.add(localMapBean);
-                        List<Path> paths = new ArrayList<>();
+                        List<MapPath> paths = new ArrayList<>();
                         pos2Path(paths, feature.getGeometry().getCoordinates(), false);
                         insides.put(localMapBean, paths);
                     }
@@ -233,7 +235,7 @@ public class MapShowView extends BaseSurfaceView {
         return localMapBean;
     }
 
-    private void pos2Path(List<Path> paths, List<List<List<List<Double>>>> coords, boolean needCompute) {
+    private void pos2Path(List<MapPath> paths, List<List<List<List<Double>>>> coords, boolean needCompute) {
         if (needCompute) {
             bounds.set(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
         }
@@ -265,7 +267,7 @@ public class MapShowView extends BaseSurfaceView {
             offsetY = (h * scale - getMeasuredHeight()) / 2;
         }
         for (List<float[]> ll : list) {
-            Path path = new Path();
+            MapPath path = pathPool.get();
             for (float[] ints : ll) {
                 ints[0] = (ints[0] - bounds.left) * scale;
                 ints[1] = (ints[1] - bounds.top) * scale;
@@ -356,14 +358,14 @@ public class MapShowView extends BaseSurfaceView {
             case MotionEvent.ACTION_CANCEL:
                 if (!doubleTouch) {
                     if (isClick) {
-                        for (Map.Entry<LocalMapBean, List<Path>> entry : insides.entrySet()) {
+                        for (Map.Entry<LocalMapBean, List<MapPath>> entry : insides.entrySet()) {
                             pts[0] = event.getX();
                             pts[1] = event.getY();
                             if (baseX != 0 || baseY != 0 || canvasScale != 1) {
                                 matrix.invert(inverse);
                                 inverse.mapPoints(pts);
                             }
-                            for (Path path : entry.getValue()) {
+                            for (MapPath path : entry.getValue()) {
                                 if (PathUtil.isInside(path, (int) pts[0], (int) pts[1])) {
                                     int key = entry.getKey().getAdCode();
                                     if (selectCode != key) {
@@ -382,9 +384,7 @@ public class MapShowView extends BaseSurfaceView {
                             name = nowMapBean.getName();
                             callDraw("");
                         } else if (baseX != 0 || baseY != 0 || canvasScale != 1) {
-                            scaleX = scaleY = baseX = baseY = 0;
-                            canvasScale = 1;
-                            matrix.reset();
+                            resetTransform();
                             callDraw("");
                         } else {
                             long parent = nowMapBean.getParent();
@@ -413,12 +413,10 @@ public class MapShowView extends BaseSurfaceView {
             mapBean = mapDao.loadLocalMap(adCode, false);
             if (mapBean != null) {
                 selectCode = 0;
-                baseX = baseY = scaleX = scaleY = 0;
-                canvasScale = 1;
-                insides.clear();
+                resetTransform();
                 bounds.set(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
                 nowMapBean = mapBean;
-                mapPaths.clear();
+                resetPaths();
                 pos2Path(mapPaths, nowMapBean.getCoords(), true);
                 name = nowMapBean.getName();
                 callDraw("");
@@ -448,17 +446,15 @@ public class MapShowView extends BaseSurfaceView {
     private void setLocalLocation(LocalMapBean mapBean) {
         canTouch = true;
         selectCode = 0;
-        baseX = baseY = scaleX = scaleY = 0;
-        canvasScale = 1;
-        insides.clear();
         bounds.set(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
         nowMapBean = mapBean;
-        mapPaths.clear();
+        resetTransform();
+        resetPaths();
         pos2Path(mapPaths, nowMapBean.getCoords(), true);
         List<LocalMapBean> children = mapDao.loadChildren(nowMapBean.getAdCode(), false);
         if (children != null && children.size() > 0) {
             for (LocalMapBean child : children) {
-                List<Path> paths = new ArrayList<>();
+                List<MapPath> paths = new ArrayList<>();
                 pos2Path(paths, child.getCoords(), false);
                 insides.put(child, paths);
             }
@@ -476,7 +472,7 @@ public class MapShowView extends BaseSurfaceView {
                             break;
                         LocalMapBean localMapBean = getLocalMapBean(feature, false);
                         list.add(localMapBean);
-                        List<Path> path = new ArrayList<>();
+                        List<MapPath> path = new ArrayList<>();
                         pos2Path(path, feature.getGeometry().getCoordinates(), false);
                         insides.put(localMapBean, path);
                     }
@@ -495,6 +491,25 @@ public class MapShowView extends BaseSurfaceView {
             name = nowMapBean.getName();
             callDraw("");
         }
+    }
+
+    private void resetPaths() {
+        for (Map.Entry<LocalMapBean, List<MapPath>> entry : insides.entrySet()) {
+            for (MapPath mapPath : entry.getValue()) {
+                mapPath.reset();
+            }
+        }
+        insides.clear();
+        for (MapPath mapPath : mapPaths) {
+            mapPath.reset();
+        }
+        mapPaths.clear();
+    }
+
+    private void resetTransform() {
+        baseX = baseY = scaleX = scaleY = 0;
+        canvasScale = 1;
+        matrix.reset();
     }
 
     private float distance(float x1, float y1, float x2, float y2) {
