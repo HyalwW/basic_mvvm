@@ -20,9 +20,8 @@ import java.util.Random;
  */
 public class TestPage extends FloatPage<TestModel, PageTestBinding> {
 
-
     @Override
-    protected View onCreate(LayoutInflater inflater, ViewGroup parent) {
+    public View onCreateView(LayoutInflater inflater, ViewGroup parent) {
         return inflater.inflate(R.layout.page_test, parent, false);
     }
 
@@ -37,10 +36,12 @@ public class TestPage extends FloatPage<TestModel, PageTestBinding> {
     }
 
     @Override
-    protected void onAddToWindow() {
+    public void onCreate() {
+        super.onCreate();
+        Log.e("wwh", "TestPage --> onCreate: " );
         rootView.base.setBackgroundColor(randomColor());
         model.getHideEvent().observe(this, aBoolean -> {
-            Log.e("wwh", "TestPage --> hideChanged: " );
+            Log.e("wwh", "TestPage --> hideChanged: ");
             if (aBoolean) {
                 hide();
             } else {
@@ -49,23 +50,42 @@ public class TestPage extends FloatPage<TestModel, PageTestBinding> {
         });
     }
 
+    @Override
+    public void onStart() {
+        super.onStart();
+        Log.e("wwh", "TestPage --> onStart: " );
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        Log.e("wwh", "TestPage --> onResume: " );
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        Log.e("wwh", "TestPage --> onPause: " );
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        Log.e("wwh", "TestPage --> onStop: " );
+    }
+
     private int randomColor() {
         Random random = new Random();
         return Color.rgb(random.nextInt(255), random.nextInt(255), random.nextInt(255));
     }
 
     @Override
-    protected void onVisibleChanged(boolean visible) {
+    public void onVisibleChanged(boolean visible) {
         Log.e("wwh", "TestPage --> onVisibleChanged: " + visible);
     }
 
     @Override
-    protected void onRemoveFromWindow() {
-
-    }
-
-    @Override
-    protected void onDestroy() {
+    public void onDestroy() {
         Log.e("wwh", "TestPage --> onDestroy: " + this);
     }
 }

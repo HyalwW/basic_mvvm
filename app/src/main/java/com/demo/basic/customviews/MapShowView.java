@@ -313,6 +313,8 @@ public class MapShowView extends BaseSurfaceView {
                 } else if (count > 1 && id == 1) {
                     isClick = false;
                     doubleTouch = true;
+                    d1x = event.getX(0);
+                    d1y = event.getY(0);
                     d2x = event.getX(1);
                     d2y = event.getY(1);
                     bl = distance(d1x, d1y, d2x, d2y);

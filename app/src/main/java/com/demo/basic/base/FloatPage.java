@@ -19,19 +19,22 @@ import androidx.lifecycle.LifecycleRegistry;
  * Date: 2020/7/2
  * Description: blablabla
  */
-public abstract class FloatPage<M extends BaseFloatModel, DB extends ViewDataBinding> implements LifecycleOwner {
+public abstract class FloatPage<M extends BaseFloatModel, DB extends ViewDataBinding> implements LifecycleOwner, IPageLifecycle {
     protected DB rootView;
     protected M model;
     protected Context context;
     private LifecycleRegistry lifecycleRegistry;
 
+    boolean isHidden;
+
     public FloatPage() {
-        initLifeCycle();
+        initLifecycle();
     }
 
     public void hide() {
         if (getRoot().getVisibility() == View.VISIBLE) {
             getRoot().setVisibility(View.INVISIBLE);
+            isHidden = true;
             onVisibleChanged(false);
         }
     }
@@ -39,16 +42,19 @@ public abstract class FloatPage<M extends BaseFloatModel, DB extends ViewDataBin
     public void show() {
         if (getRoot().getVisibility() != View.VISIBLE) {
             getRoot().setVisibility(View.VISIBLE);
+            isHidden = false;
             onVisibleChanged(true);
         }
     }
 
     View init(Context context, LayoutInflater inflater, ViewGroup parent) {
         this.context = context;
-        rootView = DataBindingUtil.bind(onCreate(inflater, parent));
+        rootView = DataBindingUtil.bind(onCreateView(inflater, parent));
         model = initModel();
-        model.create(context);
-        rootView.setVariable(modelId(), model);
+        if (model != null) {
+            model.create(context);
+            rootView.setVariable(modelId(), model);
+        }
         return getRoot();
     }
 
@@ -56,7 +62,7 @@ public abstract class FloatPage<M extends BaseFloatModel, DB extends ViewDataBin
         return rootView.getRoot();
     }
 
-    private void initLifeCycle() {
+    private void initLifecycle() {
         lifecycleRegistry = new LifecycleRegistry(this);
         if (Build.VERSION.SDK_INT >= 19) {
             lifecycleRegistry.addObserver((LifecycleEventObserver) (source, event) -> {
@@ -67,8 +73,84 @@ public abstract class FloatPage<M extends BaseFloatModel, DB extends ViewDataBin
         }
     }
 
-    void performLifecycleEvent(Lifecycle.Event event) {
+    @Override
+    public void onCreate() {
+    }
+
+    @Override
+    public void onStart() {
+    }
+
+    @Override
+    public void onResume() {
+    }
+
+    @Override
+    public void onVisibleChanged(boolean visible) {
+    }
+
+    @Override
+    public void onPause() {
+    }
+
+    @Override
+    public void onStop() {
+    }
+
+    @Override
+    public void onDestroy() {
+    }
+
+    @Override
+    public void performLifecycleEvent(Lifecycle.Event event) {
+        switch (event) {
+            case ON_CREATE:
+                doCreate();
+                break;
+            case ON_START:
+                doStart();
+                break;
+            case ON_RESUME:
+                doResume();
+                break;
+            case ON_PAUSE:
+                doPause();
+                break;
+            case ON_STOP:
+                doStop();
+                break;
+            case ON_DESTROY:
+                doDestroy();
+                break;
+        }
         lifecycleRegistry.handleLifecycleEvent(event);
+    }
+
+    private void doCreate() {
+        onCreate();
+    }
+
+    private void doStart() {
+        onStart();
+    }
+
+    private void doResume() {
+        onResume();
+    }
+
+    private void doPause() {
+        onPause();
+    }
+
+    private void doStop() {
+        onStop();
+    }
+
+    private void doDestroy() {
+        if (model != null) {
+            model.destroy();
+        }
+        onDestroy();
     }
 
     @NonNull
@@ -77,22 +159,16 @@ public abstract class FloatPage<M extends BaseFloatModel, DB extends ViewDataBin
         return lifecycleRegistry;
     }
 
-    void destroy() {
-        model.destroy();
-        onDestroy();
+    void performRemove() {
+        View me = getRoot();
+        performLifecycleEvent(Lifecycle.Event.ON_PAUSE);
+        ViewGroup parent = (ViewGroup) me.getParent();
+        performLifecycleEvent(Lifecycle.Event.ON_STOP);
+        performLifecycleEvent(Lifecycle.Event.ON_DESTROY);
+        parent.removeView(me);
     }
-
-    protected abstract View onCreate(LayoutInflater inflater, ViewGroup parent);
 
     protected abstract M initModel();
 
     protected abstract int modelId();
-
-    protected abstract void onAddToWindow();
-
-    protected abstract void onVisibleChanged(boolean visible);
-
-    protected abstract void onRemoveFromWindow();
-
-    protected abstract void onDestroy();
 }
