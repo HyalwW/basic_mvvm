@@ -5,40 +5,35 @@
 
     </data>
 
-    <FrameLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content">
+    <LinearLayout
+        android:id="@+id/base"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:background="@color/colorPrimary"
+        android:orientation="vertical"
+        android:paddingTop="20dp">
 
-        <LinearLayout
-            android:id="@+id/base"
-            android:layout_width="300dp"
+        <Button
+            android:id="@+id/add"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/colorPrimary"
-            android:orientation="vertical"
-            android:paddingTop="20dp">
+            android:text="add" />
 
-            <Button
-                android:id="@+id/add"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="add" />
+        <Button
+            android:id="@+id/replace"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="replace" />
 
-            <Button
-                android:id="@+id/replace"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="replace" />
+        <Button
+            android:id="@+id/back"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="退回" />
 
-            <Button
-                android:id="@+id/back"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="退回" />
-
-            <FrameLayout
-                android:id="@+id/page_container"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-        </LinearLayout>
-    </FrameLayout>
+        <FrameLayout
+            android:id="@+id/page_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
 </layout>

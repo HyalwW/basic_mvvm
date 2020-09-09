@@ -16,6 +16,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -45,7 +46,8 @@ public abstract class BaseFloatService<DB extends ViewDataBinding> extends Servi
     @Override
     public void onCreate() {
         super.onCreate();
-        dataBinding = DataBindingUtil.inflate(LayoutInflater.from(this), layoutId(), null, false);
+        ViewGroup root = new FrameLayout(this);
+        dataBinding = DataBindingUtil.inflate(LayoutInflater.from(this), layoutId(), root, true);
         statusBarHeight = getStatusHeight();
         navigationBarHeight = getNavBarHeight();
         initData();
@@ -75,7 +77,7 @@ public abstract class BaseFloatService<DB extends ViewDataBinding> extends Servi
         windowManager.getDefaultDisplay().getMetrics(metrics);
         displayWidth = metrics.widthPixels;
         displayHeight = metrics.heightPixels;
-        measuredMatrix = measureView(dataBinding.getRoot());
+        measuredMatrix = measureView(getRoot());
         params.x = showX() == 0 ? (displayWidth - measuredMatrix[0]) / 2 : showX();
         params.y = showY() == 0 ? (displayHeight - measuredMatrix[1]) / 2 : showY();
     }
@@ -184,16 +186,16 @@ public abstract class BaseFloatService<DB extends ViewDataBinding> extends Servi
         }
         if (windowManager != null) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                if (!dataBinding.getRoot().isAttachedToWindow()) {
-                    windowManager.addView(dataBinding.getRoot(), params);
+                if (!getRoot().isAttachedToWindow()) {
+                    windowManager.addView(getRoot(), params);
                     return true;
                 } else {
                     return false;
                 }
             } else {
                 try {
-                    if (dataBinding.getRoot().getParent() == null) {
-                        windowManager.addView(dataBinding.getRoot(), params);
+                    if (getRoot().getParent() == null) {
+                        windowManager.addView(getRoot(), params);
                     }
                     return true;
                 } catch (Exception e) {
@@ -209,18 +211,18 @@ public abstract class BaseFloatService<DB extends ViewDataBinding> extends Servi
         try {
             if (windowManager != null) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                    if (dataBinding.getRoot().isAttachedToWindow()) {
-                        //dataBinding.getRoot().onDetachWindow()
-                        windowManager.removeViewImmediate(dataBinding.getRoot());
+                    if (getRoot().isAttachedToWindow()) {
+                        //getRoot().onDetachWindow()
+                        windowManager.removeViewImmediate(getRoot());
                     } else {
-                        if (dataBinding.getRoot().getParent() != null) {
-                            windowManager.removeView(dataBinding.getRoot());
+                        if (getRoot().getParent() != null) {
+                            windowManager.removeView(getRoot());
 //                            windowManager.removeViewImmediate(view);
                         }
                     }
                 } else {
-                    if (dataBinding.getRoot().getParent() != null) {
-                        windowManager.removeViewImmediate(dataBinding.getRoot());
+                    if (getRoot().getParent() != null) {
+                        windowManager.removeViewImmediate(getRoot());
                     }
                 }
             }
@@ -232,13 +234,13 @@ public abstract class BaseFloatService<DB extends ViewDataBinding> extends Servi
     private void updateToWindow() {
         if (windowManager != null) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                if (dataBinding.getRoot().isAttachedToWindow()) {
-                    windowManager.updateViewLayout(dataBinding.getRoot(), params);
+                if (getRoot().isAttachedToWindow()) {
+                    windowManager.updateViewLayout(getRoot(), params);
                 }
             } else {
                 try {
-                    if (dataBinding.getRoot().getParent() != null) {
-                        windowManager.updateViewLayout(dataBinding.getRoot(), params);
+                    if (getRoot().getParent() != null) {
+                        windowManager.updateViewLayout(getRoot(), params);
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -313,7 +315,7 @@ public abstract class BaseFloatService<DB extends ViewDataBinding> extends Servi
         if (manager == null) {
             initPageAbout();
         }
-        ViewGroup parent = dataBinding.getRoot().findViewById(containerId);
+        ViewGroup parent = getRoot().findViewById(containerId);
         View child = page.init(this, inflater, parent);
         page.performLifecycleEvent(Lifecycle.Event.ON_CREATE);
         manager.add(this, page);
@@ -326,7 +328,7 @@ public abstract class BaseFloatService<DB extends ViewDataBinding> extends Servi
         if (manager == null) {
             initPageAbout();
         }
-        ViewGroup parent = dataBinding.getRoot().findViewById(containerId);
+        ViewGroup parent = getRoot().findViewById(containerId);
         View child = page.init(this, inflater, parent);
         page.performLifecycleEvent(Lifecycle.Event.ON_CREATE);
         parent.addView(child);
@@ -365,6 +367,10 @@ public abstract class BaseFloatService<DB extends ViewDataBinding> extends Servi
     private void initPageAbout() {
         manager = PageManager.getManager();
         inflater = LayoutInflater.from(this);
+    }
+
+    public View getRoot() {
+        return dataBinding.getRoot().getRootView();
     }
 
     protected abstract int layoutId();
